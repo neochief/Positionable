@@ -605,7 +605,8 @@
   font-weight: 300;
 }
 
-.chrome-extension-settings-button {
+.chrome-extension-settings-button,
+.chrome-extension-animation-button {
   position: absolute;
   z-index: 3;
   bottom: 5px;
@@ -620,7 +621,12 @@
   text-align: center;
 }
 
-.chrome-extension-settings-button:hover {
+.chrome-extension-animation-button {
+  left: 20px;
+}
+
+.chrome-extension-settings-button:hover,
+.chrome-extension-animation-button:hover {
   opacity: 0.5;
 }
 
@@ -839,6 +845,50 @@
   opacity: 0;
   -webkit-transition: top 500ms linear 400ms, opacity 500ms linear 400ms;
 }
+
+
+
+/*---------------------------] Animations [-----------------------*/
+
+
+
+.chrome-extension-status-bar-animation-active {
+  width: 420px;
+  height: 100px;
+}
+
+.chrome-extension-animation-timeline {
+  border: 1px solid red;
+}
+
+.chrome-extension-animation-scrub-handle {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background-color: blue;
+}
+
+
+/*
+.chrome-extension-status-bar {
+  display: none;
+}
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

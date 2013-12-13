@@ -508,6 +508,8 @@
 
 
 
+
+
   /*-------------------------] Handle [--------------------------*/
 
 
@@ -560,18 +562,28 @@
 
   RotationHandle.prototype = new Handle();
 
+  RotationHandle.prototype.dragStart = function(evt) {
+    Handle.prototype.dragStart.apply(this, arguments);
+    this.startRotation = this.target.dimensions.rotation;
+  };
+
   RotationHandle.prototype.drag = function(evt) {
+    var deg = this.getRotation(evt);
+    if(this.isConstrained(evt)) {
+      deg = Math.round(deg / RotationHandle.SNAPPING) * RotationHandle.SNAPPING;
+    }
+    elementManager.setRotation(deg - this.startRotation);
+    statusBar.update();
+  };
+
+  RotationHandle.prototype.getRotation = function(evt) {
     var w = this.target.dimensions.getWidth() / 2;
     var h = this.target.dimensions.getHeight() / 2;
     var deltaX = (evt.clientX + window.scrollX) - (this.target.position.x + w);
     var deltaY = (evt.clientY + window.scrollY) - (this.target.position.y + h);
     var deg    = new Point(deltaX, deltaY).getAngle() - new Point(w, h).getAngle();
     if(deg < 0) deg += 360;
-    if(this.isConstrained(evt)) {
-      deg = Math.round(deg / RotationHandle.SNAPPING) * RotationHandle.SNAPPING;
-    }
-    elementManager.setRotation(deg);
-    statusBar.update();
+    return deg;
   };
 
 
@@ -1687,6 +1699,7 @@
     this.buildArea('Element');
     this.buildArea('Settings');
     this.buildArea('QuickStart');
+    this.buildArea('Animation');
 
     this.createState('position', 'Move', StatusBar.POSITION_ICON);
     this.createState('resize', 'Resize', StatusBar.RESIZE_ICON);
@@ -1697,6 +1710,8 @@
     this.createState('rotate', 'Rotate', StatusBar.ROTATE_ICON);
 
     this.buildButton(StatusBar.SETTINGS_ICON, this.settingsArea);
+    this.buildButton(StatusBar.LEFT_ARROW_ICON, this.animationArea);
+
     this.el.addEventListener('dblclick', this.resetPosition.bind(this));
 
     this.defaultArea = this.getStartArea();
@@ -2051,6 +2066,13 @@
   };
 
 
+  StatusBar.prototype.buildAnimationArea = function(area, name, label, options) {
+
+    // Animation timeline area
+
+    new AnimationTimeline(area.el);
+  };
+
   // --- Util
 
   StatusBar.prototype.getCommandKey = function() {
@@ -2163,11 +2185,6 @@
 
   // --- Transform
 
-  StatusBar.prototype.resetPosition = function() {
-    this.position = this.defaultPostion;
-    this.updatePosition();
-  };
-
   StatusBar.prototype.setSelectorText = function(str) {
     this.elementHeader.html(str);
     this.elementHeader.el.title = str;
@@ -2209,6 +2226,17 @@
   };
 
 
+
+  // --- Panel Dragging
+
+
+  StatusBar.prototype.getPosition = function() {
+    var style = window.getComputedStyle(this.el);
+    this.position = new Point(parseInt(style.left), parseInt(style.bottom));
+    this.defaultPosition = this.position;
+  };
+
+
   // --- Events
 
   StatusBar.prototype.dragStart = function(evt) {
@@ -2220,20 +2248,20 @@
     this.updatePosition();
   };
 
-  // --- Compute
-
-  StatusBar.prototype.getPosition = function() {
-    var style = window.getComputedStyle(this.el);
-    this.position = new Point(parseInt(style.left), parseInt(style.bottom));
-    this.defaultPostion = this.position;
-  };
 
   // --- Update
+
+  StatusBar.prototype.resetPosition = function() {
+    this.position = this.defaultPosition;
+    this.updatePosition();
+  };
 
   StatusBar.prototype.updatePosition = function() {
     this.el.style.left   = this.position.x + 'px';
     this.el.style.bottom = this.position.y + 'px';
   };
+
+
 
 
   /*-------------------------] Settings [--------------------------*/
@@ -2592,6 +2620,51 @@
     return new Rectangle(this.top, this.right, this.bottom, this.left, this.rotation);
   };
 
+  /*-------------------------] Animations [--------------------------*/
+
+
+  function AnimationTimeline (el) {
+    this.build(el);
+    this.getDefaults();
+  };
+
+  AnimationTimeline.DEFAULT_TIME_INCREMENT = 0.5;
+  AnimationTimeline.TIME_INCREMENT_SETTING = 'time-increment';
+
+  AnimationTimeline.prototype.build = function(el) {
+    this.el = new Element(el, 'div', 'animation-timeline').el;
+    this.scrubHandle = new AnimationScrubHandle(this);
+  };
+
+  AnimationTimeline.prototype.getDefaults = function() {
+    this.timeIncrements = settings.get(AnimationTimeline.TIME_INCREMENT_SETTING) || AnimationTimeline.DEFAULT_TIME_INCREMENT;
+  };
+
+
+
+
+
+  /*-------------------------] Animation Scrub Handle [--------------------------*/
+
+
+  function AnimationScrubHandle (timeline) {
+    this.timeline = timeline;
+    this.el = new Element(timeline.el, 'div', 'animation-scrub-handle').el;
+    this.setupDragging();
+    this.resize();
+  };
+
+  AnimationScrubHandle.prototype = new DraggableElement;
+
+  AnimationScrubHandle.prototype.resize = function() {
+    var style = window.getComputedStyle(this.timeline.el);
+    console.info('hmmmmm', this.timeline.el);
+  };
+
+  AnimationScrubHandle.prototype.drag = function() {
+    console.info('ohaiiiiiiiii');
+  };
+
   /*-------------------------] Init [--------------------------*/
 
 
@@ -2605,15 +2678,15 @@
   var loadingAnimation = new LoadingAnimation();
 
 
-  loadingAnimation.animate('in', function() {
+  //loadingAnimation.animate('in', function() {
     elementManager.initializeAll(function() {
-      setTimeout(function() {
-        loadingAnimation.animate('out', function() {
+      //setTimeout(function() {
+        //loadingAnimation.animate('out', function() {
           statusBar.activate();
-        });
-      }, 250);
+        //});
+      //}, 250);
     });
-  });
+  //});
 
 })();
 
