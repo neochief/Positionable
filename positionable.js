@@ -10,7 +10,7 @@
 
   var EXTENSION_CLASS_PREFIX = 'positionable-extension-';
 
-  /*-------------------------] Utilities [--------------------------*/
+  /*-------------------------] Util [--------------------------*/
 
   function getClassName(el) {
     // SVG className attributes are of type "SVGAnimatedString"
@@ -53,6 +53,21 @@
     if (getObjectSize(result) > 0) {
       return result;
     }
+  }
+
+  /*-------------------------] SVG Util [--------------------------*/
+
+  function getSVGValue(el, key) {
+    var prop = el[key];
+    return prop && prop.baseVal && prop.baseVal.value;
+  }
+
+  function setSVGValue(el, key, val) {
+    el[key].baseVal.value = val;
+  }
+
+  function getSVGTransform(el) {
+    var t = el.getAttribute('transform');
   }
 
   /*-------------------------] NudgeManager [--------------------------*/
@@ -793,6 +808,11 @@
 
   PositionableElement.prototype.setupElement = function(el) {
     this.el = el;
+    if (this.el instanceof SVGElement) {
+      this.isSVG = true;
+    } else {
+      this.addClass('positioned-dom-element');
+    }
     this.addClass('positioned-element');
     this.setupDragging();
   };
@@ -830,14 +850,18 @@
   };
 
   PositionableElement.prototype.getAttributes = function() {
-    this.style = window.getComputedStyle(this.el);
-    this.getDimensions(this.style);
-    if (this.style.backgroundImage !== 'none') {
-      this.getBackgroundAttributes(this.style);
+    if (this.isSVG) {
+      this.setDimensionsSVG();
+    } else {
+      this.style = window.getComputedStyle(this.el);
+      this.setDimensions(this.style);
+      if (this.style.backgroundImage !== 'none') {
+        this.getBackgroundAttributes(this.style);
+      }
     }
   };
 
-  PositionableElement.prototype.getDimensions = function(style) {
+  PositionableElement.prototype.setDimensions = function(style) {
     var left = this.getInitialPosition('Left', style);
     var top = this.getInitialPosition('Top', style);
     var width  = this.getNumericValue(style.width);
@@ -851,6 +875,27 @@
       this.getRotation(style)
     );
     this.zIndex = parseInt(style.zIndex);
+  };
+
+  PositionableElement.prototype.setDimensionsSVG = function() {
+    var el = this.el, x, y, width, height, t;
+    if (el.tagName.toLowerCase() === 'g') {
+      t = getSVGTransform(el);
+    } else {
+      x      = getSVGValue(el, 'x');
+      y      = getSVGValue(el, 'y');
+      width  = getSVGValue(el, 'width');
+      height = getSVGValue(el, 'height');
+    }
+    x = x || 0;
+    y = y || 0;
+    this.position = new Point(x, y);
+    this.dimensions = new Rectangle(
+      y,
+      x + width,
+      y + height,
+      x
+    );
   };
 
   PositionableElement.prototype.getInitialPosition = function(side, style) {
@@ -1209,13 +1254,29 @@
   };
 
   PositionableElement.prototype.updatePosition = function() {
+    if (this.isSVG) {
+      return this.updatePositionSVG();
+    }
     this.el.style.left = this.position.x + 'px';
     this.el.style.top  = this.position.y + 'px';
   };
 
-  PositionableElement.prototype.updateSize = function(size) {
+  PositionableElement.prototype.updatePositionSVG = function() {
+    setSVGValue(this.el, 'x', this.position.x);
+    setSVGValue(this.el, 'y', this.position.y);
+  };
+
+  PositionableElement.prototype.updateSize = function() {
+    if (this.isSVG) {
+      return this.updateSizeSVG();
+    }
     this.el.style.width  = this.dimensions.getWidth() + 'px';
     this.el.style.height = this.dimensions.getHeight() + 'px';
+  };
+
+  PositionableElement.prototype.updateSizeSVG = function() {
+    setSVGValue(this.el, 'width', this.dimensions.getWidth());
+    setSVGValue(this.el, 'height', this.dimensions.getHeight());
   };
 
   PositionableElement.prototype.updateRotation = function() {
@@ -1232,7 +1293,10 @@
   };
 
   PositionableElement.prototype.updateZIndex = function() {
-    this.el.style.zIndex = this.zIndex;
+    // Not handling SVG z order for now
+    if (this.isSVG) {
+      this.el.style.zIndex = this.zIndex;
+    }
   };
 
 
@@ -1393,7 +1457,7 @@
     this.selector = this.getSelector();
 
     if (this.isPositioned()) {
-      if (this.zIndex !== 0) {
+      if (this.hasZIndex()) {
         add(this.getStyleLines('z-index', this.zIndex));
       }
       add(this.getStyleLines('left', round(this.position.x)));
@@ -1431,11 +1495,12 @@
       lines.push(this.concatStyle('transform', 'rotateZ(' + val1 + 'deg)'));
       return lines;
     }
-    if (prop === 'left' ||
-       prop === 'top' ||
-       prop === 'width' ||
-       prop === 'height' ||
-       prop === 'background-position') {
+    if (!this.isSVG &&
+        (prop === 'left' ||
+         prop === 'top' ||
+         prop === 'width' ||
+         prop === 'height' ||
+         prop === 'background-position')) {
       isPx = true;
     }
     str += val1;
@@ -1524,13 +1589,19 @@
   };
 
   PositionableElement.prototype.isPositioned = function() {
-    return this.style.position !== 'static';
+    return this.isSVG || this.style.position !== 'static';
   };
+
+  PositionableElement.prototype.hasZIndex = function() {
+    // SVG have undefined z indexes
+    return this.zIndex !== undefined && this.zIndex !== 0;
+  };
+
 
   PositionableElement.prototype.getData = function() {
     var text = '', rotation = this.getRoundedRotation();
     text += Math.round(this.position.x) + 'px, ' + Math.round(this.position.y) + 'px';
-    if (this.zIndex !== 0) {
+    if (this.hasZIndex()) {
       text += ', ' + this.zIndex + 'z';
     }
     text += ' | ';

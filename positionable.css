@@ -24,9 +24,12 @@
 
 .positionable-extension-positioned-element {
   cursor: move;
-  -webkit-transform: translateZ(0px);
   -webkit-animation: none !important;
   -webkit-transition: none !important;
+}
+
+.positionable-extension-positioned-dom-element {
+  -webkit-transform: translateZ(0px);
 }
 
 .positionable-extension-positioned-element-focused {
