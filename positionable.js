@@ -2514,7 +2514,12 @@
 
   StatusBar.prototype.inputChanged = function(evt) {
     var target = evt.target;
-    settings.set(target.dataset.name, target.value);
+
+    if (target.type === 'checkbox') {
+        settings.set(target.dataset.name, target.checked);
+    } else {
+        settings.set(target.dataset.name, target.value);
+    }
     if (target.selectedIndex !== undefined) {
       this.checkLinkedDescription(target);
     }
@@ -2782,7 +2787,10 @@
   Settings.GRID_Y = 'grid_y';
 
   Settings.prototype.get = function(name) {
-    return localStorage[name] || this.defaults[name] || '';
+    var value = localStorage[name] || this.defaults[name] || '';
+    if (value === 'true') value = true;
+    if (value === 'false') value = false;
+    return value;
   };
 
   Settings.prototype.set = function(name, value) {
